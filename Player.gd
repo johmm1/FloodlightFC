@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 @export var player_number: int = 1
+@export var is_ai: bool = false
 @export var move_speed: float = 7.5
 @export var acceleration: float = 11.0
 @export var friction: float = 12.0
@@ -20,21 +21,35 @@ func _physics_process(delta: float) -> void:
 	if ball == null and not ball_path.is_empty():
 		ball = get_node(ball_path)
 
-	var move_input_x: int = 0
-	var move_input_z: int = 0
+	var move_dir = Vector3.ZERO
+	if is_ai:
+		var target_vec = (ball.global_position - global_position)
+		target_vec.y = 0.0
+		if target_vec.length_squared() > 0.01:
+			move_dir = target_vec.normalized()
+			if global_position.distance_to(ball.global_position) < 2.0:
+				move_dir = Vector3.ZERO
+				if global_position.x < ball.global_position.x:
+					move_dir.x = 1.0
+				else:
+					move_dir.x = -1.0
+				if abs(ball.global_position.z - global_position.z) > 1.5:
+					move_dir.z = sign(ball.global_position.z - global_position.z)
+		else:
+			var move_input_x: int = 0
+			var move_input_z: int = 0
+			if player_number == 1:
+				move_input_x = int(Input.is_physical_key_pressed(KEY_RIGHT)) - int(Input.is_physical_key_pressed(KEY_LEFT))
+				move_input_z = int(Input.is_physical_key_pressed(KEY_DOWN)) - int(Input.is_physical_key_pressed(KEY_UP))
+				if Input.is_physical_key_pressed(KEY_TAB) and is_on_floor():
+					velocity.y = jump_force
+			else:
+				move_input_x = int(Input.is_physical_key_pressed(KEY_D)) - int(Input.is_physical_key_pressed(KEY_A))
+				move_input_z = int(Input.is_physical_key_pressed(KEY_S)) - int(Input.is_physical_key_pressed(KEY_W))
+				if Input.is_physical_key_pressed(KEY_SPACE) and is_on_floor():
+					velocity.y = jump_force
+			move_dir = Vector3(move_input_x, 0.0, move_input_z)
 
-	if player_number == 1:
-		move_input_x = int(Input.is_physical_key_pressed(KEY_RIGHT)) - int(Input.is_physical_key_pressed(KEY_LEFT))
-		move_input_z = int(Input.is_physical_key_pressed(KEY_DOWN)) - int(Input.is_physical_key_pressed(KEY_UP))
-		if Input.is_physical_key_pressed(KEY_TAB) and is_on_floor():
-			velocity.y = jump_force
-	else:
-		move_input_x = int(Input.is_physical_key_pressed(KEY_D)) - int(Input.is_physical_key_pressed(KEY_A))
-		move_input_z = int(Input.is_physical_key_pressed(KEY_S)) - int(Input.is_physical_key_pressed(KEY_W))
-		if Input.is_physical_key_pressed(KEY_SPACE) and is_on_floor():
-			velocity.y = jump_force
-
-	var move_dir = Vector3(move_input_x, 0.0, move_input_z)
 	if move_dir.length_squared() > 0.0:
 		move_dir = move_dir.normalized()
 		var direction_angle = atan2(move_dir.x, move_dir.z)
@@ -64,10 +79,14 @@ func try_kick() -> void:
 		return
 
 	var kick_key: int = KEY_L if player_number == 1 else KEY_F
-	if not Input.is_physical_key_pressed(kick_key):
-		return
-	if global_position.distance_to(ball.global_position) > 1.6:
-		return
+	if not is_ai:
+		if not Input.is_physical_key_pressed(kick_key):
+			return
+	else:
+		if global_position.distance_to(ball.global_position) > 1.6:
+			return
+		if abs(ball.global_position.x - global_position.x) > 1.2:
+			return
 
 	var kick_dir = (ball.global_position - global_position)
 	if kick_dir.length_squared() < 0.01:

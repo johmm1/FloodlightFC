@@ -14,6 +14,9 @@ var time_left: float = match_length
 var match_running: bool = true
 
 func _ready() -> void:
+	player_1.player_number = 1
+	player_2.player_number = 2
+	player_2.is_ai = true
 	reset_positions()
 	update_hud()
 	status_label.text = "Kickoff"

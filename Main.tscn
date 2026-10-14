@@ -47,6 +47,7 @@ ball_path = NodePath("../Ball")
 [node name="Player2" parent="." instance=ExtResource("2")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 0)
 player_number = 2
+is_ai = true
 ball_path = NodePath("../Ball")
 
 [node name="Ball" type="RigidBody3D" parent="."]
