@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="Player" type="CharacterBody3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = CapsuleShape3D.new()
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = CapsuleMesh.new()
