@@ -9,14 +9,14 @@ extends Node3D
 
 var home_score: int = 0
 var away_score: int = 0
-var game_time: float = 90.0
+var match_length: float = 90.0
+var time_left: float = match_length
 var match_running: bool = true
 
 func _ready() -> void:
-	player_1.player_number = 1
-	player_2.player_number = 2
 	reset_positions()
 	update_hud()
+	status_label.text = "Kickoff"
 
 func _process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_R):
@@ -24,17 +24,20 @@ func _process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_N):
 		home_score = 0
 		away_score = 0
+		time_left = match_length
+		match_running = true
+		status_label.text = "Kickoff"
 		reset_positions()
 		update_hud()
 	if Input.is_physical_key_pressed(KEY_ESCAPE):
 		get_tree().quit()
 
 	if match_running:
-		game_time -= delta
-		if game_time <= 0.0:
-			game_time = 0.0
+		time_left -= delta
+		if time_left <= 0.0:
+			time_left = 0.0
 			match_running = false
-			status_label.text = "Full time"
+			status_label.text = "Full Time"
 		update_hud()
 
 func reset_positions() -> void:
@@ -45,10 +48,11 @@ func reset_positions() -> void:
 	ball.linear_velocity = Vector3.ZERO
 	ball.angular_velocity = Vector3.ZERO
 	ball.global_position = Vector3(0.0, 1.4, 0.0)
+	ball.sleeping = false
 
 func update_hud() -> void:
 	score_label.text = "%d - %d" % [home_score, away_score]
-	timer_label.text = "Time: %02d" % max(0, int(game_time))
+	timer_label.text = "Time: %02d" % int(max(0.0, time_left))
 	if status_label.text.is_empty():
 		status_label.text = "Kickoff"
 
