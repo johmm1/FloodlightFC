@@ -13,6 +13,7 @@ var away_score: int = 0
 var match_length: float = 90.0
 var time_left: float = match_length
 var match_running: bool = true
+var paused: bool = false
 
 func _ready() -> void:
 	apply_stadium_theme()
@@ -24,6 +25,12 @@ func _ready() -> void:
 	status_label.text = "Kickoff"
 
 func _process(delta: float) -> void:
+	if Input.is_physical_key_pressed(KEY_P):
+		paused = !paused
+		status_label.text = "Paused" if paused else "Kickoff"
+		if paused:
+			return
+
 	if Input.is_physical_key_pressed(KEY_R):
 		reset_positions()
 	if Input.is_physical_key_pressed(KEY_N):
