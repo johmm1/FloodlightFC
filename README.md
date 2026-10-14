@@ -1,21 +1,23 @@
 # Floodlight FC
 
-A Godot 4.5.1 prototype with a branded main menu, team colors, AI opponent, and a cleaner match flow.
+A Godot 4.5 prototype with a main menu, AI opponent, team colors, sprinting, pause support, and a polished football feel.
 
 ## Features
-- Main menu with Play / Controls / Quit
-- Basic single-player vs AI football mode
-- Team colors and a brighter stadium look
-- Timer, score tracking, and reset flow
-- Improved movement and kick logic
+- Main menu scene with Play / Controls / Quit
+- Local football prototype against an AI opponent
+- Team colors and stadium styling
+- Match timer, scoreboard, and reset flow
+- Sprinting, pause, and improved football gameplay feel
 
 ## Controls
 - Player 1: Arrow keys + Tab jump
 - AI opponent: auto-chases the ball
+- Shift: sprint (player 1)
 - L: kick (player 1)
 - R: reset positions
 - N: reset match score
+- P: pause
 - Esc: quit
 
 ## Notes
-This is still a prototype foundation for an indie football game, not a full commercial sports title.
+This remains a prototype foundation for an indie football game, not a full commercial sports title.
