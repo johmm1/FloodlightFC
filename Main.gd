@@ -67,22 +67,19 @@ func apply_stadium_theme() -> void:
 	pitch_mat.roughness = 0.8
 	field_mesh.material_override = pitch_mat
 
-	var home_mat = StandardMaterial3D.new()
-	home_mat.albedo_color = Color(0.15, 0.52, 1.0)
-	var away_mat = StandardMaterial3D.new()
-	away_mat.albedo_color = Color(1.0, 0.24, 0.3)
+	var player_1_mat = StandardMaterial3D.new()
+	player_1_mat.albedo_color = Color(0.18, 0.42, 0.94)
+	var player_2_mat = StandardMaterial3D.new()
+	player_2_mat.albedo_color = Color(0.94, 0.25, 0.32)
 	var ball_mat = StandardMaterial3D.new()
-	ball_mat.albedo_color = Color(1.0, 0.78, 0.2)
+	ball_mat.albedo_color = Color(1.0, 0.82, 0.2)
 
-	var player_mesh_1 = player_1.get_node_or_null("Body")
-	if player_mesh_1 is MeshInstance3D:
-		player_mesh_1.material_override = home_mat
-	var player_mesh_2 = player_2.get_node_or_null("Body")
-	if player_mesh_2 is MeshInstance3D:
-		player_mesh_2.material_override = away_mat
-	var ball_mesh = ball.get_node_or_null("BallMesh")
-	if ball_mesh is MeshInstance3D:
-		ball_mesh.material_override = ball_mat
+	if player_1.get_node_or_null("Body") is MeshInstance3D:
+		player_1.get_node("Body").material_override = player_1_mat
+	if player_2.get_node_or_null("Body") is MeshInstance3D:
+		player_2.get_node("Body").material_override = player_2_mat
+	if ball.get_node_or_null("BallMesh") is MeshInstance3D:
+		ball.get_node("BallMesh").material_override = ball_mat
 
 func _on_home_goal_body_entered(body: Node3D) -> void:
 	if body == ball:
