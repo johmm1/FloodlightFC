@@ -6,6 +6,7 @@ extends Node3D
 @onready var score_label: Label = $HUD/ScoreLabel
 @onready var timer_label: Label = $HUD/TimerLabel
 @onready var status_label: Label = $HUD/StatusLabel
+@onready var field_mesh: MeshInstance3D = $Pitch/MeshInstance3D
 
 var home_score: int = 0
 var away_score: int = 0
@@ -14,6 +15,7 @@ var time_left: float = match_length
 var match_running: bool = true
 
 func _ready() -> void:
+	apply_stadium_theme()
 	player_1.player_number = 1
 	player_2.player_number = 2
 	player_2.is_ai = true
@@ -58,6 +60,29 @@ func update_hud() -> void:
 	timer_label.text = "Time: %02d" % int(max(0.0, time_left))
 	if status_label.text.is_empty():
 		status_label.text = "Kickoff"
+
+func apply_stadium_theme() -> void:
+	var pitch_mat = StandardMaterial3D.new()
+	pitch_mat.albedo_color = Color(0.08, 0.52, 0.26)
+	pitch_mat.roughness = 0.8
+	field_mesh.material_override = pitch_mat
+
+	var home_mat = StandardMaterial3D.new()
+	home_mat.albedo_color = Color(0.15, 0.52, 1.0)
+	var away_mat = StandardMaterial3D.new()
+	away_mat.albedo_color = Color(1.0, 0.24, 0.3)
+	var ball_mat = StandardMaterial3D.new()
+	ball_mat.albedo_color = Color(1.0, 0.78, 0.2)
+
+	var player_mesh_1 = player_1.get_node_or_null("Body")
+	if player_mesh_1 is MeshInstance3D:
+		player_mesh_1.material_override = home_mat
+	var player_mesh_2 = player_2.get_node_or_null("Body")
+	if player_mesh_2 is MeshInstance3D:
+		player_mesh_2.material_override = away_mat
+	var ball_mesh = ball.get_node_or_null("BallMesh")
+	if ball_mesh is MeshInstance3D:
+		ball_mesh.material_override = ball_mat
 
 func _on_home_goal_body_entered(body: Node3D) -> void:
 	if body == ball:
