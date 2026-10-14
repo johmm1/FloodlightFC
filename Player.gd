@@ -24,6 +24,7 @@ func _physics_process(delta: float) -> void:
 
 	var move_dir = Vector3.ZERO
 	var current_speed = move_speed
+	var defend_goal = false
 
 	if is_ai:
 		var target_vec = ball.global_position - global_position
@@ -38,6 +39,10 @@ func _physics_process(delta: float) -> void:
 					move_dir.x = -1.0
 				if abs(ball.global_position.z - global_position.z) > 1.5:
 					move_dir.z = sign(ball.global_position.z - global_position.z)
+		if global_position.x > 2.5:
+			defend_goal = true
+		if defend_goal:
+			move_dir = Vector3(-1.0, 0.0, 0.0) if global_position.x > 2.5 else move_dir
 		current_speed = move_speed * 1.15
 	else:
 		var sprinting := false
@@ -96,9 +101,9 @@ func try_kick() -> void:
 		if global_position.distance_to(ball.global_position) > 1.8:
 			return
 	else:
-		if global_position.distance_to(ball.global_position) > 1.4:
+		if global_position.distance_to(ball.global_position) > 1.45:
 			return
-		if abs(ball.global_position.x - global_position.x) > 1.5:
+		if abs(ball.global_position.x - global_position.x) > 1.6:
 			return
 
 	var kick_dir = (ball.global_position - global_position)
@@ -107,4 +112,4 @@ func try_kick() -> void:
 	kick_dir.y = 0.35
 	kick_dir = kick_dir.normalized()
 	ball.apply_central_impulse(kick_dir * kick_power)
-	kick_cooldown = 0.25
+	kick_cooldown = 0.22

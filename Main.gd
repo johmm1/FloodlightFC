@@ -61,6 +61,7 @@ func reset_positions() -> void:
 	ball.angular_velocity = Vector3.ZERO
 	ball.global_position = Vector3(0.0, 1.4, 0.0)
 	ball.sleeping = false
+	status_label.text = "Kickoff"
 
 func update_hud() -> void:
 	score_label.text = "%d - %d" % [home_score, away_score]
