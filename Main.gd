@@ -28,16 +28,16 @@ var hud_status: Label
 var joystick_label: Label
 
 const HOME_FORMATION := [
-	Vector3(-43, 0.9, 0), Vector3(-30, 0.9, -22), Vector3(-32, 0.9, -8),
-	Vector3(-32, 0.9, 8), Vector3(-30, 0.9, 22), Vector3(-15, 0.9, -16),
-	Vector3(-13, 0.9, 0), Vector3(-15, 0.9, 16), Vector3(-4, 0.9, -20),
-	Vector3(-3, 0.9, 0), Vector3(-4, 0.9, 20)
+	Vector3(-43, 0, 0), Vector3(-30, 0, -22), Vector3(-32, 0, -8),
+	Vector3(-32, 0, 8), Vector3(-30, 0, 22), Vector3(-15, 0, -16),
+	Vector3(-13, 0, 0), Vector3(-15, 0, 16), Vector3(-4, 0, -20),
+	Vector3(-3, 0, 0), Vector3(-4, 0, 20)
 ]
 const AWAY_FORMATION := [
-	Vector3(43, 0.9, 0), Vector3(30, 0.9, -22), Vector3(32, 0.9, -8),
-	Vector3(32, 0.9, 8), Vector3(30, 0.9, 22), Vector3(15, 0.9, -16),
-	Vector3(13, 0.9, 0), Vector3(15, 0.9, 16), Vector3(4, 0.9, -20),
-	Vector3(3, 0.9, 0), Vector3(4, 0.9, 20)
+	Vector3(43, 0, 0), Vector3(30, 0, -22), Vector3(32, 0, -8),
+	Vector3(32, 0, 8), Vector3(30, 0, 22), Vector3(15, 0, -16),
+	Vector3(13, 0, 0), Vector3(15, 0, 16), Vector3(4, 0, -20),
+	Vector3(3, 0, 0), Vector3(4, 0, 20)
 ]
 
 func _ready() -> void:
