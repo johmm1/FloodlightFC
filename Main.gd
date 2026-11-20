@@ -18,6 +18,7 @@ var joystick_vector := Vector2.ZERO
 var sprint_held := false
 var shoot_held := false
 var pass_held := false
+var tackle_held := false
 var joystick_finger := -1
 var finger_actions: Dictionary = {}
 var goal_cooldown := 0.0
@@ -86,6 +87,9 @@ func _physics_process(_delta: float) -> void:
 	if pass_held or Input.is_key_pressed(KEY_J):
 		controlled_player.set("pass_requested", true)
 		pass_held = false
+	if tackle_held or Input.is_key_pressed(KEY_L):
+		controlled_player.set("tackle_requested", true)
+		tackle_held = false
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -124,6 +128,8 @@ func _input(event: InputEvent) -> void:
 
 func _action_for_position(position: Vector2, screen: Vector2) -> String:
 	var ratio := position.y / maxf(1.0, screen.y)
+	if position.x > screen.x * 0.86 and ratio < 0.65:
+		return "tackle"
 	if ratio > 0.82:
 		return "sprint"
 	if ratio > 0.65:
@@ -135,6 +141,7 @@ func _set_action(action: String, active: bool) -> void:
 		"shoot": shoot_held = active
 		"pass": pass_held = active
 		"sprint": sprint_held = active
+		"tackle": tackle_held = active
 
 func _update_joystick(position: Vector2, screen: Vector2) -> void:
 	var center := Vector2(screen.x * 0.20, screen.y * 0.76)
