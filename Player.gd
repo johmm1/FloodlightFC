@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+signal foul_committed(foul_position: Vector3, offending_team: int)
+
 @export var player_number: int = 1
 @export var is_ai: bool = true
 @export var team_id: int = 0
@@ -288,6 +290,13 @@ func _try_tackle() -> void:
 			nearest_opponent = opponent
 	var ball_distance := global_position.distance_to(ball.global_position)
 	if ball_distance > 2.8 or nearest_distance > 1.8:
+		return
+	# A late challenge from behind the opponent is treated as a foul.
+	var opponent_ball_distance := nearest_opponent.global_position.distance_to(ball.global_position)
+	if opponent_ball_distance + 0.18 < ball_distance and nearest_distance < 1.3:
+		tackle_time = 0.42
+		tackle_cooldown = 1.15
+		foul_committed.emit(global_position, team_id)
 		return
 	var toward_ball := ball.global_position - global_position
 	toward_ball.y = 0.0
