@@ -31,6 +31,8 @@ var player_switch_timer := 0.0
 var hud_score: Label
 var hud_clock: Label
 var hud_status: Label
+var hud_player: Label
+var hud_stamina: ProgressBar
 var joystick_label: Label
 var match_camera: Camera3D
 
@@ -79,6 +81,7 @@ func _process(delta: float) -> void:
 		match_active = false
 		hud_status.text = "FULL TIME"
 	_update_scoreboard()
+	_update_player_hud()
 	_check_goal()
 	_update_camera(delta)
 
@@ -420,10 +423,23 @@ func _reset_kickoff() -> void:
 
 func _update_scoreboard() -> void:
 	if hud_score:
-		hud_score.text = "FLOODLIGHT FC     %d  —  %d" % [home_score, away_score]
+		hud_score.text = "HOME     %d  —  %d     AWAY" % [home_score, away_score]
 	if hud_clock:
 		var elapsed := int(MATCH_SECONDS - time_left)
-		hud_clock.text = "%02d:%02d" % [elapsed / 60, elapsed % 60]
+			hud_clock.text = "%02d:%02d" % [elapsed / 60, elapsed % 60]
+
+
+func _update_player_hud() -> void:
+	if hud_player == null or hud_stamina == null:
+		return
+	if controlled_player == null:
+		hud_player.text = "NO PLAYER SELECTED"
+		hud_stamina.value = 0.0
+		return
+	var number := int(controlled_player.get("player_number"))
+	var role := "GK" if number == 1 else ("DEF" if number <= 5 else ("MID" if number <= 8 else "FWD"))
+	hud_player.text = "HOME  #%02d  |  %s" % [number, role]
+	hud_stamina.value = float(controlled_player.get("stamina"))
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -445,6 +461,24 @@ func _build_hud() -> void:
 	hud_clock = Label.new()
 	hud_clock.add_theme_font_size_override("font_size", 20)
 	top_row.add_child(hud_clock)
+
+	hud_player = Label.new()
+	hud_player.anchor_left = 0.025
+	hud_player.anchor_right = 0.27
+	hud_player.anchor_top = 0.045
+	hud_player.anchor_bottom = 0.095
+	hud_player.add_theme_font_size_override("font_size", 17)
+	layer.add_child(hud_player)
+
+	hud_stamina = ProgressBar.new()
+	hud_stamina.anchor_left = 0.025
+	hud_stamina.anchor_right = 0.25
+	hud_stamina.anchor_top = 0.105
+	hud_stamina.anchor_bottom = 0.135
+	hud_stamina.min_value = 0.0
+	hud_stamina.max_value = 100.0
+	hud_stamina.show_percentage = true
+	layer.add_child(hud_stamina)
 
 	hud_status = Label.new()
 	hud_status.anchor_left = 0.5
@@ -537,4 +571,4 @@ func _make_substitution() -> void:
 		incoming.set("controlled", true)
 		incoming.set("is_ai", false)
 	substitutions_used += 1
-	hud_status.text = "SUBSTITUTION %d/%d" % [substitutions_used, MAX_SUBSTITUTIONS]
+	hud_status.text = "SUBSTITUTION %d/%d - PLAYER #%02d ON" % [substitutions_used, MAX_SUBSTITUTIONS, int(incoming.get("player_number"))]
