@@ -25,41 +25,87 @@ func _ready() -> void:
 		ball = get_node_or_null(ball_path)
 
 func _build_player_model() -> void:
-	var torso := get_node_or_null("Body") as MeshInstance3D
-	if torso == null:
-		torso = MeshInstance3D.new()
-		torso.name = "Body"
-		add_child(torso)
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 0.32
-	capsule.height = 1.05
-	torso.mesh = capsule
-	torso.position.y = 1.05
-	shirt_material = StandardMaterial3D.new()
-	shirt_material.albedo_color = Color(0.08, 0.32, 0.9) if team_id == 0 else Color(0.88, 0.12, 0.16)
-	shirt_material.roughness = 0.78
-	torso.material_override = shirt_material
-
-	var head := MeshInstance3D.new()
-	var head_mesh := SphereMesh.new()
-	head_mesh.radius = 0.19
-	head_mesh.height = 0.38
-	head.mesh = head_mesh
-	head.position = Vector3(0, 1.76, 0)
+	var kit_color := Color(0.055, 0.22, 0.78) if team_id == 0 else Color(0.82, 0.075, 0.095)
+	var trim_color := Color(0.92, 0.91, 0.78) if team_id == 0 else Color(0.08, 0.08, 0.1)
 	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.62, 0.39, 0.25)
-	head.material_override = skin
-	add_child(head)
+	skin.albedo_color = Color(0.43, 0.27, 0.19) if player_number % 3 == 0 else Color(0.66, 0.43, 0.29)
+	skin.roughness = 0.88
+	shirt_material = StandardMaterial3D.new()
+	shirt_material.albedo_color = kit_color
+	shirt_material.roughness = 0.82
+	var trim := StandardMaterial3D.new()
+	trim.albedo_color = trim_color
+	trim.roughness = 0.82
+
+	# Anatomical torso and kit details.
+	var torso := MeshInstance3D.new()
+	torso.name = "Torso"
+	var torso_mesh := CapsuleMesh.new()
+	torso_mesh.radius = 0.255
+	torso_mesh.height = 0.92
+	torso.mesh = torso_mesh
+	torso.position.y = 1.12
+	torso.material_override = shirt_material
+	add_child(torso)
 
 	var shorts := MeshInstance3D.new()
 	var shorts_mesh := BoxMesh.new()
-	shorts_mesh.size = Vector3(0.48, 0.34, 0.32)
+	shorts_mesh.size = Vector3(0.43, 0.34, 0.29)
 	shorts.mesh = shorts_mesh
-	shorts.position.y = 0.55
-	var shorts_mat := StandardMaterial3D.new()
-	shorts_mat.albedo_color = Color(0.07, 0.08, 0.11) if team_id == 0 else Color(0.92, 0.92, 0.88)
-	shorts.material_override = shorts_mat
+	shorts.position = Vector3(0, 0.67, 0)
+	shorts.material_override = trim
 	add_child(shorts)
+
+	# Neck, head and hair cap.
+	var neck := MeshInstance3D.new()
+	var neck_mesh := CylinderMesh.new()
+	neck_mesh.top_radius = 0.085
+	neck_mesh.bottom_radius = 0.095
+	neck_mesh.height = 0.18
+	neck.mesh = neck_mesh
+	neck.position.y = 1.66
+	neck.material_override = skin
+	add_child(neck)
+
+	var head := MeshInstance3D.new()
+	var head_mesh := SphereMesh.new()
+	head_mesh.radius = 0.165
+	head_mesh.height = 0.36
+	head.mesh = head_mesh
+	head.position = Vector3(0, 1.84, 0)
+	head.material_override = skin
+	add_child(head)
+
+	var hair := MeshInstance3D.new()
+	var hair_mesh := SphereMesh.new()
+	hair_mesh.radius = 0.168
+	hair_mesh.height = 0.18
+	hair.mesh = hair_mesh
+	hair.position = Vector3(0, 1.96, 0.012)
+	var hair_mat := StandardMaterial3D.new()
+	hair_mat.albedo_color = Color(0.055, 0.04, 0.03)
+	hair.material_override = hair_mat
+	add_child(hair)
+
+	# Number panel on the back of each shirt.
+	var number := Label3D.new()
+	number.text = str(player_number)
+	number.font_size = 32
+	number.pixel_size = 0.006
+	number.position = Vector3(0, 1.22, 0.258)
+	number.rotation.y = PI
+	number.modulate = Color.WHITE
+	add_child(number)
+
+	# Pivoted limbs provide a lightweight animated rig without external assets.
+	var left_arm := _make_limb("LeftArm", Vector3(-0.29, 1.43, 0), 0.63, 0.105, shirt_material, true)
+	var right_arm := _make_limb("RightArm", Vector3(0.29, 1.43, 0), 0.63, 0.105, shirt_material, true)
+	var left_leg := _make_limb("LeftLeg", Vector3(-0.13, 0.62, 0), 0.66, 0.115, trim, false)
+	var right_leg := _make_limb("RightLeg", Vector3(0.13, 0.62, 0), 0.66, 0.115, trim, false)
+	set_meta("left_arm", left_arm)
+	set_meta("right_arm", right_arm)
+	set_meta("left_leg", left_leg)
+	set_meta("right_leg", right_leg)
 
 	var collision := get_node_or_null("CollisionShape3D") as CollisionShape3D
 	if collision == null:
@@ -67,10 +113,48 @@ func _build_player_model() -> void:
 		collision.name = "CollisionShape3D"
 		add_child(collision)
 	var shape := CapsuleShape3D.new()
-	shape.radius = 0.32
-	shape.height = 1.8
+	shape.radius = 0.29
+	shape.height = 1.85
 	collision.shape = shape
-	collision.position.y = 0.9
+	collision.position.y = 0.92
+
+func _make_limb(limb_name: String, pivot_position: Vector3, length: float, radius: float, material: Material, arm: bool) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = limb_name
+	pivot.position = pivot_position
+	add_child(pivot)
+
+	var segment := MeshInstance3D.new()
+	var capsule := CapsuleMesh.new()
+	capsule.radius = radius
+	capsule.height = length
+	segment.mesh = capsule
+	segment.position.y = -length * 0.5
+	segment.material_override = material
+	pivot.add_child(segment)
+
+	if arm:
+		var hand := MeshInstance3D.new()
+		var hand_mesh := SphereMesh.new()
+		hand_mesh.radius = 0.09
+		hand_mesh.height = 0.18
+		hand.mesh = hand_mesh
+		hand.position.y = -length * 0.93
+		var hand_material := StandardMaterial3D.new()
+		hand_material.albedo_color = Color(0.62, 0.4, 0.27)
+		hand.material_override = hand_material
+		pivot.add_child(hand)
+	else:
+		var boot := MeshInstance3D.new()
+		var boot_mesh := BoxMesh.new()
+		boot_mesh.size = Vector3(0.2, 0.13, 0.34)
+		boot.mesh = boot_mesh
+		boot.position = Vector3(0, -length * 0.94, -0.065)
+		var boot_material := StandardMaterial3D.new()
+		boot_material.albedo_color = Color(0.035, 0.035, 0.04)
+		boot.material_override = boot_material
+		pivot.add_child(boot)
+	return pivot
 
 func _physics_process(delta: float) -> void:
 	if ball == null and not ball_path.is_empty():
@@ -101,6 +185,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	global_position.x = clampf(global_position.x, -48.0, 48.0)
 	global_position.z = clampf(global_position.z, -30.0, 30.0)
+	_animate_locomotion(delta)
 	if controlled and kick_requested:
 		_try_kick(false)
 	if controlled and pass_requested:
@@ -113,6 +198,24 @@ func _physics_process(delta: float) -> void:
 	kick_requested = false
 	pass_requested = false
 
+func _animate_locomotion(delta: float) -> void:
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	var gait_speed := 0.0
+	if horizontal_speed > 0.15:
+		gait_speed = horizontal_speed / maxf(move_speed, 0.1)
+	var phase := float(get_meta("gait_phase", 0.0)) + delta * (8.5 if sprinting else 6.2) * gait_speed
+	set_meta("gait_phase", phase)
+	var swing := sin(phase) * 0.58 * minf(gait_speed, 1.25)
+	var left_leg := get_meta("left_leg") as Node3D
+	var right_leg := get_meta("right_leg") as Node3D
+	var left_arm := get_meta("left_arm") as Node3D
+	var right_arm := get_meta("right_arm") as Node3D
+	if left_leg and right_leg:
+		left_leg.rotation.x = swing
+		right_leg.rotation.x = -swing
+	if left_arm and right_arm:
+		left_arm.rotation.x = -swing * 0.72
+		right_arm.rotation.x = swing * 0.72
 func _get_ai_direction() -> Vector3:
 	if ball == null:
 		return Vector3.ZERO
