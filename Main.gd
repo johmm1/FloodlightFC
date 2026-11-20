@@ -22,6 +22,8 @@ var tackle_held := false
 var joystick_finger := -1
 var finger_actions: Dictionary = {}
 var goal_cooldown := 0.0
+var foul_cooldown := 0.0
+var restart_timer := 0.0
 var player_switch_timer := 0.0
 var hud_score: Label
 var hud_clock: Label
@@ -52,6 +54,16 @@ func _ready() -> void:
 	_update_scoreboard()
 
 func _process(delta: float) -> void:
+	foul_cooldown = maxf(0.0, foul_cooldown - delta)
+	if restart_timer > 0.0:
+		restart_timer = maxf(0.0, restart_timer - delta)
+		if restart_timer <= 0.0:
+			for player in players:
+				player.set_physics_process(true)
+			if ball != null:
+				ball.freeze = false
+			hud_status.text = "FREE KICK - PLAY"
+		return
 	if not match_active or paused:
 		return
 	time_left = maxf(0.0, time_left - delta)
@@ -68,7 +80,7 @@ func _process(delta: float) -> void:
 	_update_camera(delta)
 
 func _physics_process(_delta: float) -> void:
-	if controlled_player == null or paused:
+	if controlled_player == null or paused or restart_timer > 0.0:
 		return
 	var direction := Vector3(joystick_vector.x, 0.0, joystick_vector.y)
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
@@ -302,6 +314,7 @@ func _spawn_teams() -> void:
 			add_child(player)
 			player.set("ball_path", NodePath("../Ball"))
 			players.append(player)
+			player.foul_committed.connect(_on_foul_committed)
 	_reset_kickoff()
 
 func _try_auto_switch_player() -> void:
@@ -353,6 +366,22 @@ func _check_goal() -> void:
 	elif ball.global_position.x < -50.0:
 		away_score += 1
 		_goal_scored("GOAL! AWAY TEAM")
+
+func _on_foul_committed(foul_position: Vector3, offending_team: int) -> void:
+	if foul_cooldown > 0.0 or restart_timer > 0.0 or not match_active:
+		return
+	foul_cooldown = 3.0
+	restart_timer = 1.8
+	var awarded_to := "HOME" if offending_team == 1 else "AWAY"
+	hud_status.text = "FOUL! %s FREE KICK" % awarded_to
+	if ball != null:
+		ball.global_position = Vector3(foul_position.x, 0.28, foul_position.z)
+		ball.linear_velocity = Vector3.ZERO
+		ball.angular_velocity = Vector3.ZERO
+		ball.freeze = true
+	for player in players:
+		player.velocity = Vector3.ZERO
+		player.set_physics_process(false)
 
 func _goal_scored(message: String) -> void:
 	goal_cooldown = 2.0
