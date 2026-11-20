@@ -26,6 +26,7 @@ var hud_score: Label
 var hud_clock: Label
 var hud_status: Label
 var joystick_label: Label
+var match_camera: Camera3D
 
 const HOME_FORMATION := [
 	Vector3(-43, 0, 0), Vector3(-30, 0, -22), Vector3(-32, 0, -8),
@@ -63,6 +64,7 @@ func _process(delta: float) -> void:
 		hud_status.text = "FULL TIME"
 	_update_scoreboard()
 	_check_goal()
+	_update_camera(delta)
 
 func _physics_process(_delta: float) -> void:
 	if controlled_player == null or paused:
@@ -168,19 +170,31 @@ func _build_environment() -> void:
 	ground.add_child(ground_shape)
 	add_child(ground)
 
-	var camera := Camera3D.new()
-	camera.name = "MatchCamera"
-	camera.position = Vector3(0, 69, 79)
-	camera.fov = 55.0
-	camera.current = true
-	add_child(camera)
-	camera.look_at(Vector3.ZERO, Vector3.UP)
+	match_camera = Camera3D.new()
+	match_camera.name = "MatchCamera"
+	match_camera.position = Vector3(0, 69, 79)
+	match_camera.fov = 55.0
+	match_camera.current = true
+	add_child(match_camera)
+	match_camera.look_at(Vector3.ZERO, Vector3.UP)
 
 	for i in range(10):
 		var stripe_color := Color(0.075, 0.39, 0.17) if i % 2 == 0 else Color(0.06, 0.34, 0.145)
 		_add_box("GrassStripe", Vector3(-45.0 + i * 10.0, 0.012, 0), Vector3(10.0, 0.025, FIELD_WIDTH), stripe_color)
 	_add_pitch_markings()
 	_build_goals_and_stands()
+
+func _update_camera(delta: float) -> void:
+	if match_camera == null or ball == null:
+		return
+	var focus := ball.global_position
+	if controlled_player != null:
+		focus = focus.lerp(controlled_player.global_position, 0.22)
+	focus.x = clampf(focus.x, -28.0, 28.0)
+	focus.z = clampf(focus.z, -14.0, 14.0)
+	var desired_position := Vector3(focus.x, 68.0, focus.z + 76.0)
+	match_camera.global_position = match_camera.global_position.lerp(desired_position, clampf(delta * 1.8, 0.0, 1.0))
+	match_camera.look_at(focus, Vector3.UP)
 
 func _add_pitch_markings() -> void:
 	var white := Color(0.88, 0.92, 0.86)
@@ -244,6 +258,11 @@ func _build_ball() -> void:
 	ball.linear_damp = 0.35
 	ball.angular_damp = 0.28
 	ball.continuous_cd = true
+	var ball_physics := PhysicsMaterial.new()
+	ball_physics.friction = 0.62
+	ball_physics.rough = true
+	ball_physics.bounce = 0.32
+	ball.physics_material_override = ball_physics
 	ball.set_script(BALL_SCRIPT)
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.22
