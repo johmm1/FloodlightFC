@@ -17,6 +17,8 @@ var pass_requested := false
 var kick_cooldown := 0.0
 var kick_animation_time := 0.0
 var kick_leg_left := true
+var keeper_dive_cooldown := 0.0
+var keeper_dive_time := 0.0
 var shirt_material: StandardMaterial3D
 
 func _ready() -> void:
@@ -162,6 +164,8 @@ func _physics_process(delta: float) -> void:
 	if ball == null and not ball_path.is_empty():
 		ball = get_node_or_null(ball_path)
 	kick_cooldown = maxf(0.0, kick_cooldown - delta)
+	keeper_dive_cooldown = maxf(0.0, keeper_dive_cooldown - delta)
+	keeper_dive_time = maxf(0.0, keeper_dive_time - delta)
 	var direction := Vector3.ZERO
 	var speed := move_speed
 	if controlled:
@@ -188,6 +192,8 @@ func _physics_process(delta: float) -> void:
 	global_position.x = clampf(global_position.x, -48.0, 48.0)
 	global_position.z = clampf(global_position.z, -30.0, 30.0)
 	_animate_locomotion(delta)
+	if is_ai and player_number == 1:
+		_try_goalkeeper_save()
 	_update_dribble_control(delta)
 	if controlled and kick_requested:
 		_try_kick(false)
@@ -222,11 +228,18 @@ func _animate_locomotion(delta: float) -> void:
 		left_leg.rotation.x = swing + (kick_swing if kick_leg_left else 0.0)
 		right_leg.rotation.x = -swing + (kick_swing if not kick_leg_left else 0.0)
 	if left_arm and right_arm:
-		left_arm.rotation.x = -swing * 0.72
-		right_arm.rotation.x = swing * 0.72
+		var dive_spread := 0.0
+		if keeper_dive_time > 0.0 and player_number == 1:
+			dive_spread = 1.15
+		left_arm.rotation.x = -swing * 0.72 - dive_spread
+		right_arm.rotation.x = swing * 0.72 - dive_spread
+		left_arm.rotation.z = dive_spread * 0.65
+		right_arm.rotation.z = -dive_spread * 0.65
 func _get_ai_direction() -> Vector3:
 	if ball == null:
 		return Vector3.ZERO
+	if player_number == 1:
+		return _get_goalkeeper_direction()
 	var to_ball := ball.global_position - global_position
 	to_ball.y = 0.0
 	var distance := to_ball.length()
@@ -243,6 +256,37 @@ func _get_ai_direction() -> Vector3:
 	if offset.length() < 1.0:
 		return Vector3.ZERO
 	return offset.normalized()
+
+func _get_goalkeeper_direction() -> Vector3:
+	var goal_x := -44.0 if team_id == 0 else 44.0
+	var ball_threatening := (ball.global_position.x < -30.0) if team_id == 0 else (ball.global_position.x > 30.0)
+	var target := Vector3(goal_x, 0.0, clampf(ball.global_position.z * 0.72, -3.0, 3.0))
+	if ball_threatening:
+		target.x = goal_x + (5.0 if team_id == 0 else -5.0)
+		target.z = clampf(ball.global_position.z, -5.2, 5.2)
+	var offset := target - global_position
+	offset.y = 0.0
+	if offset.length() < 0.55:
+		return Vector3.ZERO
+	return offset.normalized()
+
+func _try_goalkeeper_save() -> void:
+	if ball == null:
+		return
+	var to_ball := ball.global_position - global_position
+	var flat_distance := Vector2(to_ball.x, to_ball.z).length()
+	var goal_side := (ball.global_position.x < global_position.x) if team_id == 0 else (ball.global_position.x > global_position.x)
+	if flat_distance < 8.0 and absf(to_ball.z) > 1.0 and keeper_dive_cooldown <= 0.0 and goal_side:
+		keeper_dive_time = 0.48
+		keeper_dive_cooldown = 1.15
+		velocity.z += signf(to_ball.z) * 3.2
+	if flat_distance < 1.45 and ball.global_position.y < 2.8 and absf(ball.global_position.z) < 7.0:
+		var clear_direction := Vector3(1.0 if team_id == 0 else -1.0, 0.28, signf(ball.global_position.z) * 0.12).normalized()
+		ball.sleeping = false
+		ball.linear_velocity = Vector3.ZERO
+		ball.apply_central_impulse(clear_direction * 11.5)
+		keeper_dive_time = 0.3
+		keeper_dive_cooldown = 1.0
 
 func _update_dribble_control(delta: float) -> void:
 	if not controlled or ball == null or move_input.length_squared() < 0.04 or kick_cooldown > 0.12:
