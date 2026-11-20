@@ -19,9 +19,13 @@ var kick_animation_time := 0.0
 var kick_leg_left := true
 var keeper_dive_cooldown := 0.0
 var keeper_dive_time := 0.0
+var tackle_requested := false
+var tackle_cooldown := 0.0
+var tackle_time := 0.0
 var shirt_material: StandardMaterial3D
 
 func _ready() -> void:
+	add_to_group("football_players")
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 	floor_snap_length = 0.25
 	_build_player_model()
@@ -166,6 +170,8 @@ func _physics_process(delta: float) -> void:
 	kick_cooldown = maxf(0.0, kick_cooldown - delta)
 	keeper_dive_cooldown = maxf(0.0, keeper_dive_cooldown - delta)
 	keeper_dive_time = maxf(0.0, keeper_dive_time - delta)
+	tackle_cooldown = maxf(0.0, tackle_cooldown - delta)
+	tackle_time = maxf(0.0, tackle_time - delta)
 	var direction := Vector3.ZERO
 	var speed := move_speed
 	if controlled:
@@ -192,6 +198,10 @@ func _physics_process(delta: float) -> void:
 	global_position.x = clampf(global_position.x, -48.0, 48.0)
 	global_position.z = clampf(global_position.z, -30.0, 30.0)
 	_animate_locomotion(delta)
+	if tackle_requested:
+		_try_tackle()
+	if is_ai and not controlled:
+		_try_ai_tackle()
 	if is_ai and player_number == 1:
 		_try_goalkeeper_save()
 	_update_dribble_control(delta)
@@ -227,6 +237,10 @@ func _animate_locomotion(delta: float) -> void:
 	if left_leg and right_leg:
 		left_leg.rotation.x = swing + (kick_swing if kick_leg_left else 0.0)
 		right_leg.rotation.x = -swing + (kick_swing if not kick_leg_left else 0.0)
+	if tackle_time > 0.0:
+		rotation.x = lerpf(rotation.x, -0.28, 0.35)
+	else:
+		rotation.x = lerpf(rotation.x, 0.0, 0.2)
 	if left_arm and right_arm:
 		var dive_spread := 0.0
 		if keeper_dive_time > 0.0 and player_number == 1:
@@ -256,6 +270,47 @@ func _get_ai_direction() -> Vector3:
 	if offset.length() < 1.0:
 		return Vector3.ZERO
 	return offset.normalized()
+
+
+func _try_tackle() -> void:
+	tackle_requested = false
+	if ball == null or tackle_cooldown > 0.0:
+		return
+	var nearest_opponent: CharacterBody3D
+	var nearest_distance := 2.0
+	for node in get_tree().get_nodes_in_group("football_players"):
+		var opponent := node as CharacterBody3D
+		if opponent == null or opponent == self or int(opponent.get("team_id")) == team_id:
+			continue
+		var distance := global_position.distance_to(opponent.global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_opponent = opponent
+	var ball_distance := global_position.distance_to(ball.global_position)
+	if ball_distance > 2.8 or nearest_distance > 1.8:
+		return
+	var toward_ball := ball.global_position - global_position
+	toward_ball.y = 0.0
+	if toward_ball.length_squared() < 0.01:
+		toward_ball = -global_transform.basis.z
+	toward_ball = toward_ball.normalized()
+	ball.sleeping = false
+	ball.apply_central_impulse((toward_ball + Vector3(0.0, 0.06, 0.0)).normalized() * 5.2)
+	nearest_opponent.velocity += -toward_ball * 2.2
+	tackle_time = 0.42
+	tackle_cooldown = 1.15
+
+func _try_ai_tackle() -> void:
+	if ball == null or tackle_cooldown > 0.0 or global_position.distance_to(ball.global_position) > 2.2:
+		return
+	for node in get_tree().get_nodes_in_group("football_players"):
+		var opponent := node as CharacterBody3D
+		if opponent == null or opponent == self or int(opponent.get("team_id")) == team_id:
+			continue
+		if global_position.distance_to(opponent.global_position) < 1.35:
+			tackle_requested = true
+			_try_tackle()
+			return
 
 func _get_goalkeeper_direction() -> Vector3:
 	var goal_x := -44.0 if team_id == 0 else 44.0
