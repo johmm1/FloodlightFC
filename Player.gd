@@ -256,22 +256,80 @@ func _get_ai_direction() -> Vector3:
 		return Vector3.ZERO
 	if player_number == 1:
 		return _get_goalkeeper_direction()
+
+	var target := _get_formation_target()
 	var to_ball := ball.global_position - global_position
 	to_ball.y = 0.0
 	var distance := to_ball.length()
-	var target := home_position
-	var attacking_right := team_id == 0
-	var ball_on_our_half := (ball.global_position.x < 0.0) if team_id == 0 else (ball.global_position.x > 0.0)
-	if distance < 15.0 and (ball_on_our_half or distance < 8.0):
-		target = ball.global_position + Vector3(-2.0 if attacking_right else 2.0, 0.0, 0.0)
-	else:
-		target.x += clampf(ball.global_position.x * 0.22, -9.0, 9.0)
-		target.z += clampf(ball.global_position.z * 0.25, -7.0, 7.0)
+	var team_has_ball := _team_has_possession()
+	var closest_teammate := _is_closest_teammate_to_ball()
+
+	# Only the nearest defender presses aggressively; nearby midfielders offer cover.
+	if not team_has_ball and distance < 13.0 and (closest_teammate or (player_number >= 6 and player_number <= 8 and distance < 8.0)):
+		var approach_side := -1.6 if team_id == 0 else 1.6
+		target = ball.global_position + Vector3(approach_side, 0.0, 0.0)
+	elif team_has_ball and player_number >= 9:
+		# Forward line attacks space beyond the ball while keeping wide players wide.
+		var forward := 1.0 if team_id == 0 else -1.0
+		var run_depth := 7.0 if player_number == 10 else 5.0
+		target.x = maxf(home_position.x, ball.global_position.x) + forward * run_depth if team_id == 0 else minf(home_position.x, ball.global_position.x) - run_depth
+		target.z = home_position.z * 0.88 + ball.global_position.z * 0.12
 	var offset := target - global_position
 	offset.y = 0.0
-	if offset.length() < 1.0:
+	if offset.length() < 0.8:
 		return Vector3.ZERO
 	return offset.normalized()
+
+func _team_has_possession() -> bool:
+	var nearest_distance := INF
+	var nearest_team := -1
+	for node in get_tree().get_nodes_in_group("football_players"):
+		var teammate := node as CharacterBody3D
+		if teammate == null:
+			continue
+		var distance := teammate.global_position.distance_to(ball.global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_team = int(teammate.get("team_id"))
+	return nearest_team == team_id
+
+func _is_closest_teammate_to_ball() -> bool:
+	var my_distance := global_position.distance_to(ball.global_position)
+	for node in get_tree().get_nodes_in_group("football_players"):
+		var teammate := node as CharacterBody3D
+		if teammate == null or teammate == self or int(teammate.get("team_id")) != team_id:
+			continue
+		if teammate.global_position.distance_to(ball.global_position) + 0.05 < my_distance:
+			return false
+	return true
+
+func _get_formation_target() -> Vector3:
+	var target := home_position
+	var forward := 1.0 if team_id == 0 else -1.0
+	var ball_x := ball.global_position.x
+	var ball_z := ball.global_position.z
+	var has_ball := _team_has_possession()
+
+	# The whole block shifts with play, but each line keeps its own spacing.
+	target.z += clampf(ball_z * 0.20, -6.0, 6.0)
+	if has_ball:
+		var line_advance := 0.0
+		if player_number >= 9:
+			line_advance = 9.0 if player_number == 10 else 6.0
+		elif player_number >= 6:
+			line_advance = 4.0
+		else:
+			line_advance = 1.5
+		target.x += forward * line_advance
+		target.x += clampf((ball_x - home_position.x) * 0.10, -5.0, 5.0)
+	else:
+		target.x += clampf((ball_x - home_position.x) * 0.17, -8.0, 8.0)
+	# Wide forwards and fullbacks preserve width instead of collapsing onto the ball.
+	if player_number == 2 or player_number == 5 or player_number == 9 or player_number == 11:
+		target.z = signf(home_position.z) * maxf(12.0, absf(target.z))
+	target.x = clampf(target.x, -43.0, 43.0)
+	target.z = clampf(target.z, -27.0, 27.0)
+	return target
 
 
 func _try_tackle() -> void:
