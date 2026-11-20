@@ -15,6 +15,8 @@ var sprinting := false
 var kick_requested := false
 var pass_requested := false
 var kick_cooldown := 0.0
+var kick_animation_time := 0.0
+var kick_leg_left := true
 var shirt_material: StandardMaterial3D
 
 func _ready() -> void:
@@ -186,6 +188,7 @@ func _physics_process(delta: float) -> void:
 	global_position.x = clampf(global_position.x, -48.0, 48.0)
 	global_position.z = clampf(global_position.z, -30.0, 30.0)
 	_animate_locomotion(delta)
+	_update_dribble_control(delta)
 	if controlled and kick_requested:
 		_try_kick(false)
 	if controlled and pass_requested:
@@ -206,13 +209,18 @@ func _animate_locomotion(delta: float) -> void:
 	var phase := float(get_meta("gait_phase", 0.0)) + delta * (8.5 if sprinting else 6.2) * gait_speed
 	set_meta("gait_phase", phase)
 	var swing := sin(phase) * 0.58 * minf(gait_speed, 1.25)
+	kick_animation_time = maxf(0.0, kick_animation_time - delta)
+	var kick_swing := 0.0
+	if kick_animation_time > 0.0:
+		var kick_phase := 1.0 - kick_animation_time / 0.34
+		kick_swing = sin(kick_phase * PI) * 1.05
 	var left_leg := get_meta("left_leg") as Node3D
 	var right_leg := get_meta("right_leg") as Node3D
 	var left_arm := get_meta("left_arm") as Node3D
 	var right_arm := get_meta("right_arm") as Node3D
 	if left_leg and right_leg:
-		left_leg.rotation.x = swing
-		right_leg.rotation.x = -swing
+		left_leg.rotation.x = swing + (kick_swing if kick_leg_left else 0.0)
+		right_leg.rotation.x = -swing + (kick_swing if not kick_leg_left else 0.0)
 	if left_arm and right_arm:
 		left_arm.rotation.x = -swing * 0.72
 		right_arm.rotation.x = swing * 0.72
@@ -236,6 +244,24 @@ func _get_ai_direction() -> Vector3:
 		return Vector3.ZERO
 	return offset.normalized()
 
+func _update_dribble_control(delta: float) -> void:
+	if not controlled or ball == null or move_input.length_squared() < 0.04 or kick_cooldown > 0.12:
+		return
+	var to_ball := ball.global_position - global_position
+	to_ball.y = 0.0
+	var distance := to_ball.length()
+	if distance < 0.55 or distance > 1.65:
+		return
+	var forward := -global_transform.basis.z
+	var target_position := global_position + forward * 1.05
+	target_position.y = ball.global_position.y
+	var desired_velocity := (target_position - ball.global_position) * 3.0
+	desired_velocity = desired_velocity.limit_length(4.2)
+	var velocity_error := desired_velocity - ball.linear_velocity
+	velocity_error.y = 0.0
+	ball.sleeping = false
+	ball.apply_central_force(velocity_error * ball.mass * 7.5)
+
 func _try_kick(is_pass: bool) -> void:
 	if ball == null or kick_cooldown > 0.0 or global_position.distance_to(ball.global_position) > 2.0:
 		return
@@ -247,4 +273,6 @@ func _try_kick(is_pass: bool) -> void:
 		target_direction = (forward + Vector3(0.0, 0.16, 0.0)).normalized()
 	ball.sleeping = false
 	ball.apply_central_impulse(target_direction * (8.5 if is_pass else 15.5))
+	kick_leg_left = player_number % 2 == 0
+	kick_animation_time = 0.34
 	kick_cooldown = 0.38
