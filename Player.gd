@@ -25,6 +25,9 @@ var tackle_requested := false
 var tackle_cooldown := 0.0
 var tackle_time := 0.0
 var shirt_material: StandardMaterial3D
+var stamina: float = 100.0
+var sprint_drain_rate: float = 13.0
+var stamina_recovery_rate: float = 5.5
 
 func _ready() -> void:
 	add_to_group("football_players")
@@ -176,9 +179,16 @@ func _physics_process(delta: float) -> void:
 	tackle_time = maxf(0.0, tackle_time - delta)
 	var direction := Vector3.ZERO
 	var speed := move_speed
+	var is_sprinting_now := controlled and sprinting and move_input.length_squared() > 0.08
+	if is_sprinting_now:
+		stamina = maxf(0.0, stamina - sprint_drain_rate * delta)
+	else:
+		stamina = minf(100.0, stamina + stamina_recovery_rate * delta)
+	var fatigue_factor := lerpf(0.72, 1.0, stamina / 100.0)
+	speed *= fatigue_factor
 	if controlled:
 		direction = Vector3(move_input.x, 0.0, move_input.y)
-		if sprinting:
+		if sprinting and stamina > 3.0:
 			speed *= 1.28
 	else:
 		direction = _get_ai_direction()
