@@ -90,7 +90,7 @@ func _physics_process(delta: float) -> void:
 		var target_velocity := direction * speed
 		velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
 		velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
-		rotation.y = atan2(direction.x, direction.z)
+		rotation.y = atan2(-direction.x, -direction.z)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * 0.65 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * 0.65 * delta)
@@ -105,6 +105,11 @@ func _physics_process(delta: float) -> void:
 		_try_kick(false)
 	if controlled and pass_requested:
 		_try_kick(true)
+	if not controlled and ball != null and global_position.distance_to(ball.global_position) < 1.65 and kick_cooldown <= 0.0:
+		var attack_direction := Vector3(1.0 if team_id == 0 else -1.0, 0.12, -ball.global_position.z * 0.025).normalized()
+		ball.sleeping = false
+		ball.apply_central_impulse(attack_direction * 10.5)
+		kick_cooldown = 0.75
 	kick_requested = false
 	pass_requested = false
 
