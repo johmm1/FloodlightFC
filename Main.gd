@@ -426,7 +426,7 @@ func _update_scoreboard() -> void:
 		hud_score.text = "HOME     %d  —  %d     AWAY" % [home_score, away_score]
 	if hud_clock:
 		var elapsed := int(MATCH_SECONDS - time_left)
-			hud_clock.text = "%02d:%02d" % [elapsed / 60, elapsed % 60]
+		hud_clock.text = "%02d:%02d" % [elapsed / 60, elapsed % 60]
 
 
 func _update_player_hud() -> void:
