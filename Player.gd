@@ -211,11 +211,8 @@ func _physics_process(delta: float) -> void:
 		_try_kick(false)
 	if controlled and pass_requested:
 		_try_kick(true)
-	if not controlled and ball != null and global_position.distance_to(ball.global_position) < 1.65 and kick_cooldown <= 0.0:
-		var attack_direction := Vector3(1.0 if team_id == 0 else -1.0, 0.12, -ball.global_position.z * 0.025).normalized()
-		ball.sleeping = false
-		ball.apply_central_impulse(attack_direction * 10.5)
-		kick_cooldown = 0.75
+	if is_ai and not controlled and ball != null and global_position.distance_to(ball.global_position) < 1.65 and kick_cooldown <= 0.0:
+		_ai_play_ball()
 	kick_requested = false
 	pass_requested = false
 
@@ -434,11 +431,63 @@ func _try_kick(is_pass: bool) -> void:
 	var forward := -global_transform.basis.z
 	var target_direction := forward
 	if is_pass:
-		target_direction = (Vector3(home_position.x + (8.0 if team_id == 0 else -8.0), 0.25, home_position.z) - ball.global_position).normalized()
+		var receiver := _find_best_pass_target()
+		if receiver != null:
+			var lead_position: Vector3 = receiver.global_position + receiver.velocity * 0.28
+			target_direction = (lead_position - ball.global_position).normalized()
+		else:
+			target_direction = (Vector3(home_position.x + (8.0 if team_id == 0 else -8.0), 0.25, home_position.z) - ball.global_position).normalized()
 	else:
 		target_direction = (forward + Vector3(0.0, 0.16, 0.0)).normalized()
 	ball.sleeping = false
-	ball.apply_central_impulse(target_direction * (8.5 if is_pass else 15.5))
+	ball.apply_central_impulse(target_direction * (9.0 if is_pass else 15.5))
 	kick_leg_left = player_number % 2 == 0
 	kick_animation_time = 0.34
 	kick_cooldown = 0.38
+
+
+func _find_best_pass_target() -> CharacterBody3D:
+	var best_player: CharacterBody3D
+	var best_score := -INF
+	var forward := 1.0 if team_id == 0 else -1.0
+	for node in get_tree().get_nodes_in_group("football_players"):
+		var candidate := node as CharacterBody3D
+		if candidate == null or candidate == self or int(candidate.get("team_id")) != team_id:
+			continue
+		if int(candidate.get("player_number")) == 1:
+			continue
+		var to_candidate := candidate.global_position - ball.global_position
+		var distance := Vector2(to_candidate.x, to_candidate.z).length()
+		if distance < 3.0 or distance > 25.0:
+			continue
+		var forward_gain := to_candidate.x * forward
+		var space := 1.0
+		for opponent_node in get_tree().get_nodes_in_group("football_players"):
+			var opponent := opponent_node as CharacterBody3D
+			if opponent == null or int(opponent.get("team_id")) == team_id:
+				continue
+			var opponent_distance := opponent.global_position.distance_to(candidate.global_position)
+			if opponent_distance < 3.0:
+				space -= (3.0 - opponent_distance) * 0.22
+		var score := forward_gain * 0.8 + space * 5.0 - distance * 0.16
+		if score > best_score:
+			best_score = score
+			best_player = candidate
+	return best_player
+
+
+func _ai_play_ball() -> void:
+	var forward := 1.0 if team_id == 0 else -1.0
+	var distance_to_goal := (50.0 - ball.global_position.x) if team_id == 0 else (50.0 + ball.global_position.x)
+	var pass_target := _find_best_pass_target()
+	var should_shoot := distance_to_goal < 23.0 and absf(ball.global_position.z) < 19.0
+	if pass_target != null and not should_shoot:
+		var lead_position: Vector3 = pass_target.global_position + pass_target.velocity * 0.28
+		var pass_direction := (lead_position - ball.global_position).normalized()
+		ball.sleeping = false
+		ball.apply_central_impulse((pass_direction + Vector3(0.0, 0.035, 0.0)).normalized() * 9.0)
+	else:
+		var shot_direction := (Vector3(forward, 0.13, -ball.global_position.z * 0.018)).normalized()
+		ball.sleeping = false
+		ball.apply_central_impulse(shot_direction * (14.0 if should_shoot else 10.5))
+	kick_cooldown = 0.85
