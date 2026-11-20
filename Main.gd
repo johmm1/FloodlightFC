@@ -7,6 +7,9 @@ const FIELD_WIDTH := 64.0
 const MATCH_SECONDS := 300.0
 
 var players: Array[CharacterBody3D] = []
+var home_bench: Array[CharacterBody3D] = []
+var substitutions_used := 0
+const MAX_SUBSTITUTIONS := 3
 var ball: RigidBody3D
 var controlled_player: CharacterBody3D
 var home_score := 0
@@ -137,6 +140,8 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
 			_toggle_pause()
+		elif event.keycode == KEY_C:
+			_make_substitution()
 
 func _action_for_position(position: Vector2, screen: Vector2) -> String:
 	var ratio := position.y / maxf(1.0, screen.y)
@@ -315,6 +320,20 @@ func _spawn_teams() -> void:
 			player.set("ball_path", NodePath("../Ball"))
 			players.append(player)
 			player.foul_committed.connect(_on_foul_committed)
+		if team == 0:
+			for reserve_index in range(3):
+				var reserve := PLAYER_SCENE.instantiate() as CharacterBody3D
+				reserve.name = "Home_Sub_%d" % (reserve_index + 12)
+				reserve.set("team_id", 0)
+				reserve.set("player_number", reserve_index + 12)
+				reserve.set("is_ai", true)
+				reserve.set("home_position", Vector3(-60.0 - reserve_index * 2.0, 0.0, 0.0))
+				reserve.position = Vector3(-60.0 - reserve_index * 2.0, 0.0, 0.0)
+				add_child(reserve)
+				reserve.set("ball_path", NodePath("../Ball"))
+				reserve.visible = false
+				reserve.set_physics_process(false)
+				home_bench.append(reserve)
 	_reset_kickoff()
 
 func _try_auto_switch_player() -> void:
@@ -452,6 +471,8 @@ func _build_hud() -> void:
 	_make_action_button(layer, "SHOOT", 0.84, 0.56, "shoot")
 	_make_action_button(layer, "PASS", 0.72, 0.72, "pass")
 	_make_action_button(layer, "SPRINT", 0.84, 0.86, "sprint")
+	var sub_button := _make_action_button(layer, "SUB", 0.94, 0.39, "sub")
+	sub_button.pressed.connect(_make_substitution)
 
 	var pause_button := Button.new()
 	pause_button.text = "Ⅱ"
@@ -479,3 +500,41 @@ func _toggle_pause() -> void:
 	paused = not paused
 	get_tree().paused = paused
 	hud_status.text = "PAUSED" if paused else "PLAY"
+
+
+func _make_substitution() -> void:
+	if substitutions_used >= MAX_SUBSTITUTIONS or home_bench.is_empty() or restart_timer > 0.0 or not match_active:
+		return
+	var outgoing: CharacterBody3D
+	var lowest_stamina := 101.0
+	for player in players:
+		if int(player.get("team_id")) != 0 or int(player.get("player_number")) == 1:
+			continue
+		var current_stamina := float(player.get("stamina"))
+		if current_stamina < lowest_stamina:
+			lowest_stamina = current_stamina
+			outgoing = player
+	if outgoing == null:
+		return
+	var incoming := home_bench.pop_front()
+	var old_position := outgoing.global_position
+	var old_home_position: Vector3 = outgoing.get("home_position")
+	var was_controlled := outgoing == controlled_player
+	outgoing.set("controlled", false)
+	outgoing.set("is_ai", true)
+	outgoing.global_position = Vector3(-65.0 - substitutions_used * 2.0, 0.0, 0.0)
+	outgoing.visible = false
+	outgoing.set_physics_process(false)
+	players.erase(outgoing)
+	incoming.global_position = old_position
+	incoming.set("home_position", old_home_position)
+	incoming.visible = true
+	incoming.set_physics_process(true)
+	incoming.set("stamina", 100.0)
+	players.append(incoming)
+	if was_controlled:
+		controlled_player = incoming
+		incoming.set("controlled", true)
+		incoming.set("is_ai", false)
+	substitutions_used += 1
+	hud_status.text = "SUBSTITUTION %d/%d" % [substitutions_used, MAX_SUBSTITUTIONS]
