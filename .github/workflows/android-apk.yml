@@ -21,6 +21,30 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Install Java and system dependencies
+        run: |
+          apt-get update
+          apt-get install -y openjdk-17-jdk fontconfig unzip wget
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> "$GITHUB_ENV"
+          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> "$GITHUB_PATH"
+
+      - name: Install matching Godot Android export templates
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          wget -q "https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz" -O /tmp/godot-templates.tpz
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
+
+      - name: Configure Godot Android SDK paths
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/java_sdk_path = "/usr/lib/jvm/java-17-openjdk-amd64"
+          export/android/android_sdk_path = "/usr/lib/android-sdk"
+          EOF
+
       - name: Prepare build directory
         run: mkdir -p build
 
