@@ -199,8 +199,8 @@ func _build_environment() -> void:
 
 	match_camera = Camera3D.new()
 	match_camera.name = "MatchCamera"
-	match_camera.position = Vector3(0, 69, 79)
-	match_camera.fov = 55.0
+	match_camera.position = Vector3(0, 43, 52)
+	match_camera.fov = 58.0
 	match_camera.current = true
 	add_child(match_camera)
 	match_camera.look_at(Vector3.ZERO, Vector3.UP)
@@ -219,7 +219,8 @@ func _update_camera(delta: float) -> void:
 		focus = focus.lerp(controlled_player.global_position, 0.22)
 	focus.x = clampf(focus.x, -28.0, 28.0)
 	focus.z = clampf(focus.z, -14.0, 14.0)
-	var desired_position := Vector3(focus.x, 68.0, focus.z + 76.0)
+	focus.y = 0.0
+	var desired_position := Vector3(focus.x, 43.0, focus.z + 52.0)
 	match_camera.global_position = match_camera.global_position.lerp(desired_position, clampf(delta * 1.8, 0.0, 1.0))
 	match_camera.look_at(focus, Vector3.UP)
 
